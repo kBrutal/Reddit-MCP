@@ -19,37 +19,39 @@ logging.getLogger().setLevel(logging.WARNING)
 @mcp.tool()
 async def fetch_reddit_user_latest_post(username: str) -> str:
     """
-    Fetch the latest post from a specific Reddit user.
+    Fetch the latest post from a specific Reddit user using redditwarp.
     """
     if not client:
         return "Reddit client not initialized due to missing credentials."
     try:
-        # Correct way to fetch submissions of a user in redditwarp
-        latest_posts_async_iterator = client.p.user.pull.submissions(username, amount=1)
+        # Step 1: Fetch the user model
+        user = await client.p.user.fetch_by_name(username)
 
-        latest_posts = [post async for post in latest_posts_async_iterator]
-
-        if not latest_posts:
+        # Step 2: Pull their latest submission
+        async for submission in user.pull.new(amount=1):
+            # Found latest post
+            post = submission
+            break
+        else:
             return f"No posts found for user '{username}'."
-
-        submission = latest_posts[0]
 
         post_info = (
             f"Latest Post by u/{username}:\n"
-            f"Title: {submission.title}\n"
-            f"Score: {submission.score}\n"
-            f"Comments: {submission.comment_count}\n"  # redditwarp uses `comment_count`
-            f"Author: {submission.author or '[deleted]'}\n"  # direct attribute, not `.name`
-            f"Type: {_get_post_type(submission)}\n"
-            f"Content: {_get_content(submission)}\n"
-            f"Link: https://reddit.com{submission.permalink}\n"
+            f"Title: {post.title}\n"
+            f"Score: {post.score}\n"
+            f"Comments: {post.comment_count}\n"
+            f"Author: {post.author_display_name or '[deleted]'}\n"
+            f"Type: {_get_post_type(post)}\n"
+            f"Content: {_get_content(post)}\n"
+            f"Link: https://reddit.com{post.permalink}\n"
             f"---"
         )
         return post_info
 
     except Exception as e:
-        logging.error(f"An error occurred while fetching latest post for user '{username}': {str(e)}")
-        return f"An error occurred while fetching latest post for user '{username}': {str(e)}"
+        logging.error(f"Error fetching latest post for '{username}': {e}")
+        return f"An error occurred while fetching latest post for user '{username}': {e}"
+
 
 
 @mcp.tool()
