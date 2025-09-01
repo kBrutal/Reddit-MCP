@@ -16,40 +16,60 @@ CREDS = [x for x in [REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKE
 client = Client(*CREDS)
 logging.getLogger().setLevel(logging.WARNING)
 
-
 @mcp.tool()
-async def fetch_latest_user_post(username: str) -> str:
+async def fetch_user_latest_posts(username: str, limit: int = 10, sort: str = "new") -> str:
     """
-    Fetch the latest submission (post) of a given Reddit user.
+    Fetch latest posts from a specific Reddit user
 
     Args:
-        username: Reddit username (without the "u/")
+        username: Reddit username (without u/ prefix)
+        limit: Number of posts to fetch (default: 10)
+        sort: Sort method - 'new', 'hot', 'top' (default: 'new')
 
     Returns:
-        Human-readable string containing info about the user's latest post
+        Human readable string containing user's latest posts
     """
     try:
-        async for submission in client.p.user.submissions.pull.new(username, limit=1):
-            return (
+        posts = []
+        
+        # Use the appropriate sorting method
+        if sort == "new":
+            submission_iter = client.p.redditor.pull.submissions.new(username, limit)
+        elif sort == "hot":
+            submission_iter = client.p.redditor.pull.submissions.hot(username, limit)
+        elif sort == "top":
+            submission_iter = client.p.redditor.pull.submissions.top(username, limit)
+        else:
+            return f"Invalid sort method: {sort}. Use 'new', 'hot', or 'top'."
+
+        async for submission in submission_iter:
+            # Format timestamp if available
+            created_time = ""
+            if hasattr(submission, 'created_at') and submission.created_at:
+                created_time = f"Posted: {submission.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+            
+            post_info = (
                 f"Title: {submission.title}\n"
+                f"Subreddit: r/{submission.subreddit_name}\n"
                 f"Score: {submission.score}\n"
-                f"Subreddit: {submission.subreddit.name}\n"
-                f"Author: {submission.author_display_name or '[deleted]'}\n"
+                f"Comments: {submission.comment_count}\n"
+                f"{created_time}"
                 f"Type: {_get_post_type(submission)}\n"
                 f"Content: {_get_content(submission)}\n"
                 f"Link: https://reddit.com{submission.permalink}\n"
+                f"Post ID: {submission.id36}\n"
+                f"---"
             )
+            posts.append(post_info)
 
-        return f"No posts found for user {username}."
+        if not posts:
+            return f"No posts found for user: {username}"
+        
+        return f"Latest {len(posts)} posts from u/{username}:\n\n" + "\n\n".join(posts)
 
     except Exception as e:
-        logging.error(f"Error fetching latest post for {username}: {str(e)}")
-        return f"An error occurred: {str(e)}"
-
-
-    except Exception as e:
-        logging.error(f"Error fetching latest post for {username}: {str(e)}")
-        return f"An error occurred: {str(e)}"
+        logging.error(f"An error occurred while fetching posts for {username}: {str(e)}")
+        return f"An error occurred while fetching posts for {username}: {str(e)}"
 
 
 
