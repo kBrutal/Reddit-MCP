@@ -16,6 +16,43 @@ CREDS = [x for x in [REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKE
 client = Client(*CREDS)
 logging.getLogger().setLevel(logging.WARNING)
 
+
+@mcp.tool()
+async def fetch_latest_user_post(username: str) -> str:
+    """
+    Fetch the latest submission (post) of a given Reddit user.
+
+    Args:
+        username: Reddit username (without the "u/")
+
+    Returns:
+        Human-readable string containing info about the user's latest post
+    """
+    try:
+        # Get the Redditor object
+        redditor = await client.p.user.fetch(username)
+
+        # Fetch their latest submission
+        submissions = redditor.submissions
+        async for submission in submissions.new(limit=1):
+            return (
+                f"Title: {submission.title}\n"
+                f"Score: {submission.score}\n"
+                f"Subreddit: {submission.subreddit.name}\n"
+                f"Author: {submission.author_display_name or '[deleted]'}\n"
+                f"Type: {_get_post_type(submission)}\n"
+                f"Content: {_get_content(submission)}\n"
+                f"Link: https://reddit.com{submission.permalink}\n"
+            )
+
+        return f"No posts found for user {username}."
+
+    except Exception as e:
+        logging.error(f"Error fetching latest post for {username}: {str(e)}")
+        return f"An error occurred: {str(e)}"
+
+
+
 @mcp.tool()
 async def fetch_reddit_hot_threads(subreddit: str, limit: int = 10) -> str:
     """
