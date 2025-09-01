@@ -32,14 +32,41 @@ async def fetch_user_latest_posts(username: str, limit: int = 10, sort: str = "n
     try:
         posts = []
         
-        # Use the appropriate sorting method
-        if sort == "new":
-            submission_iter = client.p.redditor.pull.submissions.new(username, limit)
-        elif sort == "hot":
-            submission_iter = client.p.redditor.pull.submissions.hot(username, limit)
-        elif sort == "top":
-            submission_iter = client.p.redditor.pull.submissions.top(username, limit)
-        else:
+        # Try different API structures for redditwarp
+        submission_iter = None
+        
+        # Method 1: Try client.p.user structure
+        try:
+            if sort == "new":
+                submission_iter = client.p.user.pull.submissions.new(username, limit)
+            elif sort == "hot":
+                submission_iter = client.p.user.pull.submissions.hot(username, limit)
+            elif sort == "top":
+                submission_iter = client.p.user.pull.submissions.top(username, limit)
+        except AttributeError:
+            pass
+        
+        # Method 2: Try client.p.account structure
+        if submission_iter is None:
+            try:
+                if sort == "new":
+                    submission_iter = client.p.account.pull.submissions.new(username, limit)
+                elif sort == "hot":
+                    submission_iter = client.p.account.pull.submissions.hot(username, limit)
+                elif sort == "top":
+                    submission_iter = client.p.account.pull.submissions.top(username, limit)
+            except AttributeError:
+                pass
+        
+        # Method 3: Try using search instead
+        if submission_iter is None:
+            try:
+                # Search for posts by author
+                submission_iter = client.p.subreddit.pull.search("all", f"author:{username}", sort=sort, limit=limit)
+            except AttributeError:
+                return f"Unable to access user posts API. RedditWarp API structure may have changed."
+        
+        if submission_iter is None:
             return f"Invalid sort method: {sort}. Use 'new', 'hot', or 'top'."
 
         async for submission in submission_iter:
