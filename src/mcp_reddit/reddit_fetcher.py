@@ -18,38 +18,36 @@ logging.getLogger().setLevel(logging.WARNING)
 
 @mcp.tool()
 async def fetch_reddit_user_latest_post(username: str) -> str:
-    """
-    Fetch the latest post from a specific Reddit user using redditwarp.
-    """
     if not client:
-        return "Reddit client not initialized due to missing credentials."
+        return "Reddit client not initialized."
+
     try:
-        # Use the user.submissions procedure group
-        latest_posts_async_iterator = client.p.user.submissions.pull_new(username, amount=1)
+        # Try a plausible redditwarp call
+        iterator = client.p.redditor.pull.submissions(username, amount=1)
+        latest_posts = [post async for post in iterator]
+    except AttributeError:
+        # Fallback to PRAW if redditwarp gives attribute errors
+        import praw
+        reddit = praw.Reddit(...)  # your PRAW config
+        user = reddit.redditor(username)
+        submissions = user.submissions.new(limit=1)
+        latest_posts = [submissions.__next__()] if submissions else []
 
-        latest_posts = [post async for post in latest_posts_async_iterator]
+    if not latest_posts:
+        return f"No posts found for user '{username}'."
 
-        if not latest_posts:
-            return f"No posts found for user '{username}'."
+    post = latest_posts[0]
+    return (
+        f"Latest Post by u/{username}:\n"
+        f"Title: {post.title}\n"
+        f"Score: {getattr(post, 'score', '?')}\n"
+        f"Comments: {getattr(post, 'comment_count', getattr(post, 'num_comments', '?'))}\n"
+        f"Author: {getattr(post, 'author_display_name', getattr(post, 'author', '[deleted]'))}\n"
+        f"Type: {_get_post_type(post)}\n"
+        f"Content: {_get_content(post)}\n"
+        f"Link: https://reddit.com{post.permalink}\n"
+    )
 
-        post = latest_posts[0]
-
-        post_info = (
-            f"Latest Post by u/{username}:\n"
-            f"Title: {post.title}\n"
-            f"Score: {post.score}\n"
-            f"Comments: {post.comment_count}\n"
-            f"Author: {post.author_display_name or '[deleted]'}\n"
-            f"Type: {_get_post_type(post)}\n"
-            f"Content: {_get_content(post)}\n"
-            f"Link: https://reddit.com{post.permalink}\n"
-            f"---"
-        )
-        return post_info
-
-    except Exception as e:
-        logging.error(f"Error fetching latest post for '{username}': {e}")
-        return f"An error occurred while fetching latest post for user '{username}': {e}"
 
 
 
