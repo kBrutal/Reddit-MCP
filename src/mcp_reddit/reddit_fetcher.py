@@ -16,41 +16,57 @@ CREDS = [x for x in [REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKE
 client = Client(*CREDS)
 logging.getLogger().setLevel(logging.WARNING)
 
+from fastmcp import tool
+import logging
+
+# Import redditwarp client if available
+try:
+    from redditwarp.ASYNC import Client
+    client = Client()
+except ImportError:
+    client = None
+
 @mcp.tool()
 async def fetch_reddit_user_latest_post(username: str) -> str:
-    if not client:
-        return "Reddit client not initialized."
+    """
+    Fetch the latest post of a given Reddit user.
+    Falls back to PRAW if redditwarp fails.
+    """
+    latest_posts = []
 
-    try:
-        # Try a plausible redditwarp call
-        iterator = client.p.redditor.pull.submissions(username, amount=1)
-        latest_posts = [post async for post in iterator]
-    except AttributeError:
-        # Fallback to PRAW if redditwarp gives attribute errors
+    if client:
+        try:
+            # Try fetching with redditwarp
+            iterator = client.p.submission.pull.redditor(username, amount=1)
+            latest_posts = [post async for post in iterator]
+        except Exception as e:
+            logging.warning(f"Redditwarp failed: {e}")
+
+    # If redditwarp didn’t work, fallback to PRAW
+    if not latest_posts:
         import praw
         reddit = praw.Reddit(
             client_id="S4Fl4HjvNzDz0lfPqE07Yg",
             client_secret="dnLJhLzh8bUUIj8r0Kbi2lRpwIOzxQ",
             user_agent="RedditOptimizer/1.0 by PairDapper2400",
-            username="PairDapper2400",
-            password="avi@1234",
+            refresh_token="193821545008902-vYda212RMRHFcr32QrxjrRBAeoJbIw"
         )
         user = reddit.redditor(username)
         submissions = user.submissions.new(limit=1)
-        latest_posts = [submissions.__next__()] if submissions else []
+        latest_posts = list(submissions)
 
     if not latest_posts:
         return f"No posts found for user '{username}'."
 
     post = latest_posts[0]
+
     return (
         f"Latest Post by u/{username}:\n"
         f"Title: {post.title}\n"
         f"Score: {getattr(post, 'score', '?')}\n"
-        f"Comments: {getattr(post, 'comment_count', getattr(post, 'num_comments', '?'))}\n"
-        f"Author: {getattr(post, 'author_display_name', getattr(post, 'author', '[deleted]'))}\n"
-        f"Type: {_get_post_type(post)}\n"
-        f"Content: {_get_content(post)}\n"
+        f"Comments: {getattr(post, 'num_comments', '?')}\n"
+        f"Author: {getattr(post, 'author', '[deleted]')}\n"
+        f"Content: {getattr(post, 'selftext', getattr(post, 'body', ''))[:300]}...\n"
         f"Link: https://reddit.com{post.permalink}\n"
     )
 
