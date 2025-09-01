@@ -29,12 +29,7 @@ async def fetch_latest_user_post(username: str) -> str:
         Human-readable string containing info about the user's latest post
     """
     try:
-        # Get the Redditor object
-        redditor = await client.p.user.fetch(username)
-
-        # Fetch their latest submission
-        submissions = redditor.submissions
-        async for submission in submissions.new(limit=1):
+        async for submission in client.p.user.submissions.pull.new(username, limit=1):
             return (
                 f"Title: {submission.title}\n"
                 f"Score: {submission.score}\n"
@@ -46,6 +41,11 @@ async def fetch_latest_user_post(username: str) -> str:
             )
 
         return f"No posts found for user {username}."
+
+    except Exception as e:
+        logging.error(f"Error fetching latest post for {username}: {str(e)}")
+        return f"An error occurred: {str(e)}"
+
 
     except Exception as e:
         logging.error(f"Error fetching latest post for {username}: {str(e)}")
