@@ -31,8 +31,8 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     if not client:
         return "Reddit client not initialized due to missing credentials."
     try:
-        # Pull submissions from the specified user, sorted by 'new', limited to 1
-        latest_posts_async_iterator = client.p.user.pull.submissions(username, sort='new', limit=1)
+        # CORRECTED LINE: Use client.redditor(username).submissions.new() for asyncpraw
+        latest_posts_async_iterator = client.redditor(username).submissions.new(limit=1)
         
         # Convert the async iterator to a list to easily check if it's empty
         latest_posts = [post async for post in latest_posts_async_iterator]
@@ -46,8 +46,8 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
             f"Latest Post by u/{username}:\n"
             f"Title: {submission.title}\n"
             f"Score: {submission.score}\n"
-            f"Comments: {submission.comment_count}\n"
-            f"Author: {submission.author_display_name or '[deleted]'}\n"
+            f"Comments: {submission.num_comments}\n" # Corrected from comment_count to num_comments
+            f"Author: {submission.author.name if submission.author else '[deleted]'}\n" # Better author check
             f"Type: {_get_post_type(submission)}\n"
             f"Content: {_get_content(submission)}\n"
             f"Link: https://reddit.com{submission.permalink}\n"
