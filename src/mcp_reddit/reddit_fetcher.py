@@ -28,7 +28,13 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     except AttributeError:
         # Fallback to PRAW if redditwarp gives attribute errors
         import praw
-        reddit = praw.Reddit(...)  # your PRAW config
+        reddit = praw.Reddit(
+            client_id="S4Fl4HjvNzDz0lfPqE07Yg",
+            client_secret="dnLJhLzh8bUUIj8r0Kbi2lRpwIOzxQ",
+            user_agent="RedditOptimizer/1.0 by PairDapper2400",
+            username="PairDapper2400",
+            password="avi@1234",
+        )
         user = reddit.redditor(username)
         submissions = user.submissions.new(limit=1)
         latest_posts = [submissions.__next__()] if submissions else []
