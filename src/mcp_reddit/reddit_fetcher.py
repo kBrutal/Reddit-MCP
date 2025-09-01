@@ -20,35 +20,26 @@ logging.getLogger().setLevel(logging.WARNING)
 async def fetch_reddit_user_latest_post(username: str) -> str:
     """
     Fetch the latest post from a specific Reddit user.
-
-    Args:
-        username: The Reddit username of the user whose latest post is to be fetched.
-
-    Returns:
-        A human-readable string containing information about the user's latest post,
-        or a message indicating that no posts were found or an error occurred.
     """
     if not client:
         return "Reddit client not initialized due to missing credentials."
     try:
-        # CORRECTED LINE: Assumes client.p.user is a method taking username,
-        # and its result has a 'pull' attribute, which in turn has a 'new' method.
-        latest_posts_async_iterator = client.p.user(username).pull.new(limit=1)
-        
-        # Convert the async iterator to a list to easily check if it's empty
+        # Correct way to fetch submissions of a user in redditwarp
+        latest_posts_async_iterator = client.p.user.pull.submissions(username, amount=1)
+
         latest_posts = [post async for post in latest_posts_async_iterator]
 
         if not latest_posts:
             return f"No posts found for user '{username}'."
 
-        submission = latest_posts[0] # Get the first (and only) post
-        
+        submission = latest_posts[0]
+
         post_info = (
             f"Latest Post by u/{username}:\n"
             f"Title: {submission.title}\n"
             f"Score: {submission.score}\n"
-            f"Comments: {submission.num_comments}\n" # Corrected to num_comments (standard PRAW attribute)
-            f"Author: {submission.author.name if submission.author else '[deleted]'}\n" # More robust author check (standard PRAW attribute)
+            f"Comments: {submission.comment_count}\n"  # redditwarp uses `comment_count`
+            f"Author: {submission.author or '[deleted]'}\n"  # direct attribute, not `.name`
             f"Type: {_get_post_type(submission)}\n"
             f"Content: {_get_content(submission)}\n"
             f"Link: https://reddit.com{submission.permalink}\n"
@@ -59,7 +50,6 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     except Exception as e:
         logging.error(f"An error occurred while fetching latest post for user '{username}': {str(e)}")
         return f"An error occurred while fetching latest post for user '{username}': {str(e)}"
-
 
 
 @mcp.tool()
