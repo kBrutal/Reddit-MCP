@@ -4,8 +4,6 @@ from redditwarp.ASYNC import Client
 from redditwarp.models.submission_ASYNC import LinkPost, TextPost, GalleryPost
 from fastmcp import FastMCP
 import logging
-
-from fastmcp import tool
 import logging
 
 mcp = FastMCP("Reddit MCP")
