@@ -17,86 +17,47 @@ client = Client(*CREDS)
 logging.getLogger().setLevel(logging.WARNING)
 
 @mcp.tool()
-async def fetch_user_latest_posts(username: str, limit: int = 10, sort: str = "new") -> str:
+async def fetch_reddit_user_latest_post(username: str) -> str:
     """
-    Fetch latest posts from a specific Reddit user
+    Fetch the latest post from a specific Reddit user.
 
     Args:
-        username: Reddit username (without u/ prefix)
-        limit: Number of posts to fetch (default: 10)
-        sort: Sort method - 'new', 'hot', 'top' (default: 'new')
+        username: The Reddit username of the user whose latest post is to be fetched.
 
     Returns:
-        Human readable string containing user's latest posts
+        A human-readable string containing information about the user's latest post,
+        or a message indicating that no posts were found or an error occurred.
     """
+    if not client:
+        return "Reddit client not initialized due to missing credentials."
     try:
-        posts = []
+        # Pull submissions from the specified user, sorted by 'new', limited to 1
+        latest_posts_async_iterator = client.p.user.pull.submissions(username, sort='new', limit=1)
         
-        # Try different API structures for redditwarp
-        submission_iter = None
-        
-        # Method 1: Try client.p.user structure
-        try:
-            if sort == "new":
-                submission_iter = client.p.user.pull.submissions.new(username, limit)
-            elif sort == "hot":
-                submission_iter = client.p.user.pull.submissions.hot(username, limit)
-            elif sort == "top":
-                submission_iter = client.p.user.pull.submissions.top(username, limit)
-        except AttributeError:
-            pass
-        
-        # Method 2: Try client.p.account structure
-        if submission_iter is None:
-            try:
-                if sort == "new":
-                    submission_iter = client.p.account.pull.submissions.new(username, limit)
-                elif sort == "hot":
-                    submission_iter = client.p.account.pull.submissions.hot(username, limit)
-                elif sort == "top":
-                    submission_iter = client.p.account.pull.submissions.top(username, limit)
-            except AttributeError:
-                pass
-        
-        # Method 3: Try using search instead
-        if submission_iter is None:
-            try:
-                # Search for posts by author
-                submission_iter = client.p.subreddit.pull.search("all", f"author:{username}", sort=sort, limit=limit)
-            except AttributeError:
-                return f"Unable to access user posts API. RedditWarp API structure may have changed."
-        
-        if submission_iter is None:
-            return f"Invalid sort method: {sort}. Use 'new', 'hot', or 'top'."
+        # Convert the async iterator to a list to easily check if it's empty
+        latest_posts = [post async for post in latest_posts_async_iterator]
 
-        async for submission in submission_iter:
-            # Format timestamp if available
-            created_time = ""
-            if hasattr(submission, 'created_at') and submission.created_at:
-                created_time = f"Posted: {submission.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
-            
-            post_info = (
-                f"Title: {submission.title}\n"
-                f"Subreddit: r/{submission.subreddit_name}\n"
-                f"Score: {submission.score}\n"
-                f"Comments: {submission.comment_count}\n"
-                f"{created_time}"
-                f"Type: {_get_post_type(submission)}\n"
-                f"Content: {_get_content(submission)}\n"
-                f"Link: https://reddit.com{submission.permalink}\n"
-                f"Post ID: {submission.id36}\n"
-                f"---"
-            )
-            posts.append(post_info)
+        if not latest_posts:
+            return f"No posts found for user '{username}'."
 
-        if not posts:
-            return f"No posts found for user: {username}"
+        submission = latest_posts[0] # Get the first (and only) post
         
-        return f"Latest {len(posts)} posts from u/{username}:\n\n" + "\n\n".join(posts)
+        post_info = (
+            f"Latest Post by u/{username}:\n"
+            f"Title: {submission.title}\n"
+            f"Score: {submission.score}\n"
+            f"Comments: {submission.comment_count}\n"
+            f"Author: {submission.author_display_name or '[deleted]'}\n"
+            f"Type: {_get_post_type(submission)}\n"
+            f"Content: {_get_content(submission)}\n"
+            f"Link: https://reddit.com{submission.permalink}\n"
+            f"---"
+        )
+        return post_info
 
     except Exception as e:
-        logging.error(f"An error occurred while fetching posts for {username}: {str(e)}")
-        return f"An error occurred while fetching posts for {username}: {str(e)}"
+        logging.error(f"An error occurred while fetching latest post for user '{username}': {str(e)}")
+        return f"An error occurred while fetching latest post for user '{username}': {str(e)}"
 
 
 
