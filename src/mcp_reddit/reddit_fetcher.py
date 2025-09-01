@@ -5,6 +5,9 @@ from redditwarp.models.submission_ASYNC import LinkPost, TextPost, GalleryPost
 from fastmcp import FastMCP
 import logging
 
+from fastmcp import tool
+import logging
+
 mcp = FastMCP("Reddit MCP")
 
 REDDIT_CLIENT_ID=os.getenv("REDDIT_CLIENT_ID")
@@ -16,15 +19,7 @@ CREDS = [x for x in [REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKE
 client = Client(*CREDS)
 logging.getLogger().setLevel(logging.WARNING)
 
-from fastmcp import tool
-import logging
 
-# Import redditwarp client if available
-try:
-    from redditwarp.ASYNC import Client
-    client = Client()
-except ImportError:
-    client = None
 
 @mcp.tool()
 async def fetch_reddit_user_latest_post(username: str) -> str:
