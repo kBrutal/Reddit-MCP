@@ -24,16 +24,15 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     if not client:
         return "Reddit client not initialized due to missing credentials."
     try:
-        # Step 1: Fetch the user model
-        user = await client.p.user.fetch_by_name(username)
+        # Use the user.submissions procedure group
+        latest_posts_async_iterator = client.p.user.submissions.pull_new(username, amount=1)
 
-        # Step 2: Pull their latest submission
-        async for submission in user.pull.new(amount=1):
-            # Found latest post
-            post = submission
-            break
-        else:
+        latest_posts = [post async for post in latest_posts_async_iterator]
+
+        if not latest_posts:
             return f"No posts found for user '{username}'."
+
+        post = latest_posts[0]
 
         post_info = (
             f"Latest Post by u/{username}:\n"
@@ -51,6 +50,7 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     except Exception as e:
         logging.error(f"Error fetching latest post for '{username}': {e}")
         return f"An error occurred while fetching latest post for user '{username}': {e}"
+
 
 
 
