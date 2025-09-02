@@ -11,6 +11,7 @@ mcp = FastMCP("Reddit MCP")
 REDDIT_CLIENT_ID=os.getenv("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET=os.getenv("REDDIT_CLIENT_SECRET")
 REDDIT_REFRESH_TOKEN=os.getenv("REDDIT_REFRESH_TOKEN")
+REDDIT_USER_AGENT=os.getenv("REDDIT_USER_AGENT")
 
 CREDS = [x for x in [REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_REFRESH_TOKEN] if x]
 
@@ -39,10 +40,10 @@ async def fetch_reddit_user_latest_post(username: str) -> str:
     if not latest_posts:
         import praw
         reddit = praw.Reddit(
-            client_id="S4Fl4HjvNzDz0lfPqE07Yg",
-            client_secret="dnLJhLzh8bUUIj8r0Kbi2lRpwIOzxQ",
-            user_agent="RedditOptimizer/1.0 by PairDapper2400",
-            refresh_token="193821545008902-vYda212RMRHFcr32QrxjrRBAeoJbIw"
+            client_id=REDDIT_CLIENT_ID,
+            client_secret=REDDIT_CLIENT_SECRET,
+            user_agent=REDDIT_USER_AGENT,
+            refresh_token=os.getenv("REDDIT_REFRESH_TOKEN")
         )
         user = reddit.redditor(username)
         submissions = user.submissions.new(limit=1)
